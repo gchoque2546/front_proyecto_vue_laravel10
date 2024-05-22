@@ -15,17 +15,29 @@
                 <Button label="Export" icon="pi pi-upload" severity="help" @click="exportCSV($event)" />
             </template>
         </Toolbar>
-        <DataTable ref="dt" :value="productos" dataKey="id" :paginator="true" :rows="10"
+        <DataTable
+            ref="dt"
+            :value="productos"
+            :totalRecords="totalRecords"
+            lazy
+            :loading="loading"
+            @page="onPage($event)"
+            dataKey="id"
+            :paginator="true"
+            :rows="5"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-            :rowsPerPageOptions="[5, 10, 25]"
-            currentPageReportTemplate="Mostrando {first} to {last} of {totalRecords} productos"
-            responsiveLayout="scroll">
+            :rowsPerPageOptions="[2, 5, 10, 25]"
+            currentPageReportTemplate="Mostrando {first} al {last} de {totalRecords} productos"
+            responsiveLayout="scroll"
+        >
             <template #header>
-                <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
+                <div
+                    class="flex flex-column md:flex-row md:justify-content-between md:align-items-center"
+                >
                     <h5 class="m-0">Gestión Productos</h5>
                     <IconField iconPosition="left" class="block mt-2 md:mt-0">
                         <InputIcon class="pi pi-search" />
-                        <InputText class="w-full sm:w-auto" placeholder="Buscar..." />
+                        <InputText class="w-full sm:w-auto" placeholder="Buscar..." v-model="buscar" @keypress.enter="buscador()"/>
                     </IconField>
                 </div>
             </template>
@@ -86,21 +98,39 @@
             </Column>
             <Column headerStyle="min-width:10rem;">
                 <template #body="slotProps">
-                    <Button icon="pi pi-pencil" class="mr-2" severity="success" rounded
-                        @click="editProduct(slotProps.data)" />
-                    <Button icon="pi pi-trash" class="mt-2" severity="warning" rounded
-                        @click="confirmDeleteProduct(slotProps.data)" />
+                    <Button
+                        icon="pi pi-image"
+                        class="mr-2"
+                        severity="info"
+                        rounded
+                        @click="imagenProducto(slotProps.data)"
+                    />
+                    <Button
+                        icon="pi pi-pencil"
+                        class="mr-2"
+                        severity="success"
+                        rounded
+                        @click="editProduct(slotProps.data)"
+                    />
+                    <Button
+                        icon="pi pi-trash"
+                        class="mt-2"
+                        severity="warning"
+                        rounded
+                        @click="confirmDeleteProduct(slotProps.data)"
+                    />
                 </template>
             </Column>
         </DataTable>
 
-        <Dialog v-model:visible="productDialog" 
+        <Dialog
+            v-model:visible="productDialog" 
             :style="{ width: '450px' }" 
             header="Producto" 
             :modal="true"
             class="p-fluid"
         >
-        {{ product }}
+        <!--{{ product }}-->
             <img
                 :src="'/demo/images/product/' + product.image"
                 :alt="product.image"
@@ -191,6 +221,27 @@
                 <Button label="Yes" icon="pi pi-check" text @click="deleteProduct" />
             </template>
         </Dialog>
+        <!--13:26-->
+        <Dialog
+            v-model:visible="productDialogImagen" 
+            :style="{ width: '650px' }" 
+            header="Imagen" 
+            :modal="true"
+            class="p-fluid"
+        >
+        <img :src="`http://127.0.0.1:8000/${product.imagen}`" alt="" width="250">
+        <FileUpload
+            customUpload @uploader="subirImagenProducto"
+            @upload="onAdvancedUpload($event)"
+            :multiple="true"
+            accept="image/*"
+            :maxFileSize="1000000"
+        >
+            <template #empty>
+                <p>Arrastrar y Soltar para subir Imagen.</p>
+            </template>
+        </FileUpload>
+        </Dialog>
     </div>
 </template>
 
@@ -211,14 +262,32 @@ const productDialog = ref(false);
 const product = ref({});
 const submitted = ref(false);
 const deleteProductDialog = ref(false);
+const productDialogImagen = ref(false);
+const buscar = ref("")
+
+//para lazy
+const loading = ref(false)
+const lazyParams = ref({page: 0})
 
 onMounted(() => {
     listarProductos();
     getCategorias();
 });
 
+const onPage = (event) => {
+    console.log(event)
+    lazyParams.value = event;
+    listarProductos()
+}
+
 async function listarProductos() {
-    const { data } = await productoService.listar();
+    loading.value = true
+
+    let page = lazyParams.value.page+1;
+    let limit = lazyParams.value.rows;
+
+    const { data } = await productoService.listar(page, limit, buscar.value);
+    loading.value = false
     console.log(data);
     productos.value = data.data;
     totalRecords.value = data.total;
@@ -271,8 +340,42 @@ const editProduct = (editProduct) => {
     product.value = { ...editProduct };
     productDialog.value = true;
 };
+const imagenProducto = (prod) => {
+    product.value = { ...prod };
+    productDialogImagen.value = true;
+};
 const confirmDeleteProduct = (editProduct) => {
     product.value = editProduct;
     deleteProductDialog.value = true;
+};
+const deleteProduct = async () => {
+    await productoService.eliminar(product.value.id);
+    listarProductos();
+    deleteProductDialog.value = false;
+    product.value = {};
+    toast.add({
+        severity: 'success',
+        summary: 'Eliminado',
+        detail: 'Producto Eliminado',
+        life: 3000
+    });
+};
+const buscador = () => {
+    listarProductos()
+};
+const subirImagenProducto = async (event) => {
+    const file = event.files[0];
+    let formData = new FormData();
+    formData.append("imagen",file)
+    await productoService.actualizarImagen(product.value.id, formData)
+    productDialogImagen.value = false;
+    product.value = {};
+    listarProductos();
+    toast.add({
+        severity: 'success',
+        summary: 'Imagen Subida',
+        detail: 'Producto Imagen Actualizado',
+        life: 3000
+    });
 };
 </script>
