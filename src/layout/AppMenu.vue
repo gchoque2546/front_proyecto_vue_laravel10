@@ -28,7 +28,7 @@ const model = ref([
     {
         label: 'Gestión Usuarios',
         items: [
-            { label: 'Usuarios', icon: 'pi pi-fw pi-prime', to: '/utilities/icons' },
+            { label: 'Usuarios', icon: 'pi pi-fw pi-prime', to: '/usuario' },
         ]
     },
 ]);

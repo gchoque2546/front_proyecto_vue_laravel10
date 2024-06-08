@@ -1,8 +1,10 @@
 <script setup>
-import { ref } from "vue";
+import { ref } from 'vue';
 import axios from "axios";
-import { useRouter, useRoute } from "vue-router"
-import authService from "./../services/auth.service"
+import { useRouter, useRoute } from "vue-router";
+import authService from "./../services/auth.service";
+import { useAuthStore } from '@/stores/auth';
+const auth = useAuthStore()
 
     //variables
     // const correo = ref ("juan@mail.com");
@@ -18,7 +20,11 @@ import authService from "./../services/auth.service"
             const { data } = await authService.loginConLaravel(usuario.value)
             console.log("CON INTERCEPTOR", data)
             errors.value = {}
+
+            auth.setUsuario(data.usuario.email)
+
             localStorage.setItem("access_token", data.access_token);
+            localStorage.setItem("auth", data.usuario.email);
             router.push("/about")
         } catch (error) {
             console.log(error.response.data)
@@ -84,5 +90,4 @@ import authService from "./../services/auth.service"
             </div>
         </div>
     </div>
-    <AppConfig simple />
 </template>
